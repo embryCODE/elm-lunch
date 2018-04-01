@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Html exposing (Attribute, Html, button, div, h1, h2, li, p, pre, text, ul)
+import Html exposing (Attribute, Html, button, div, h1, h2, h3, li, p, pre, text, ul)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Json.Encode exposing (encode)
@@ -95,7 +95,17 @@ resultsList result =
             ul [] (List.map (\city -> li [] [ text (toString city) ]) citiesList)
 
         ListOfCitiesGrouped listOfGroups ->
-            div [] (List.map (\state -> ul [] (List.map (\city -> li [] [ text (toString city) ]) state)) listOfGroups)
+            div []
+                (List.map
+                    (\group ->
+                        div []
+                            [ h3 [] [ text group.groupName ]
+                            , ul []
+                                (List.map (\city -> li [] [ text (toString city) ]) group.cities)
+                            ]
+                    )
+                    listOfGroups
+                )
 
 
 view model =
