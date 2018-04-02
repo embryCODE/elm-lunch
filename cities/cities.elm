@@ -4,6 +4,7 @@ import Html exposing (Attribute, Html, button, div, h1, h2, h3, li, p, pre, text
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Json.Encode exposing (encode)
+import List.Extra exposing (groupWhile)
 
 
 main =
@@ -34,16 +35,15 @@ type alias Model =
 type Result
     = SingleCity City
     | ListOfCities (List City)
-    | ListOfCitiesGrouped ListOfCitiesGrouped
+    | ListOfCitiesGrouped (List GroupedCities)
 
 
-type alias ListOfCitiesGrouped =
-    List GroupedCities
-
-
-groupByField : List City -> String -> ListOfCitiesGrouped
-groupByField listOfCities groupField =
-    [ GroupedCities "testing123" rawCities ]
+groupByState : List City -> List GroupedCities
+groupByState listOfCities =
+    listOfCities
+        |> List.sortBy (\city -> city.state)
+        |> groupWhile (\x y -> x.state == y.state)
+        |> List.map (\state -> GroupedCities "Whatever" state)
 
 
 
@@ -53,9 +53,9 @@ groupByField listOfCities groupField =
 type Msg
     = StartingList
     | GroupBy (List City) String
-    | FilterGroupBy ListOfCitiesGrouped String
-    | StatesAndCityCount ListOfCitiesGrouped
-    | StatesWithHiLoZip ListOfCitiesGrouped
+    | FilterGroupBy (List GroupedCities) String
+    | StatesAndCityCount (List GroupedCities)
+    | StatesWithHiLoZip (List GroupedCities)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,7 +65,7 @@ update msg model =
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
 
         GroupBy listOfCities groupField ->
-            ( Model ("Grouped By " ++ groupField) (ListOfCitiesGrouped (groupByField listOfCities groupField)), Cmd.none )
+            ( Model ("Grouped By \"" ++ groupField ++ "\"") (ListOfCitiesGrouped (groupByState listOfCities)), Cmd.none )
 
         _ ->
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
