@@ -4,7 +4,8 @@ import Html exposing (Attribute, Html, button, div, h1, h2, h3, li, p, pre, text
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Json.Encode exposing (encode)
-import List.Extra exposing (groupWhile)
+import Dict exposing (..)
+import Dict.Extra exposing (..)
 
 
 main =
@@ -35,15 +36,19 @@ type alias Model =
 type Result
     = SingleCity City
     | ListOfCities (List City)
-    | ListOfCitiesGrouped (List GroupedCities)
+    | ListOfCitiesGrouped (Dict String (List City))
 
 
-groupByState : List City -> List GroupedCities
-groupByState listOfCities =
-    listOfCities
-        |> List.sortBy (\city -> city.state)
-        |> groupWhile (\x y -> x.state == y.state)
-        |> List.map (\state -> GroupedCities "Whatever" state)
+groupBy : List City -> String -> Dict String (List City)
+groupBy list field =
+    list
+        |> List.filter (\city -> city.state /= "State")
+        |> Dict.Extra.groupBy (\city -> city.state)
+
+
+groupByState : List City -> Dict String (List City)
+groupByState list =
+    groupBy list "state"
 
 
 
@@ -65,7 +70,7 @@ update msg model =
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
 
         GroupBy listOfCities groupField ->
-            ( Model ("Grouped By \"" ++ groupField ++ "\"") (ListOfCitiesGrouped (groupByState listOfCities)), Cmd.none )
+            ( Model ("Grouped By State") (ListOfCitiesGrouped (groupByState listOfCities)), Cmd.none )
 
         _ ->
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
@@ -97,14 +102,14 @@ resultsList result =
         ListOfCitiesGrouped listOfGroups ->
             div []
                 (List.map
-                    (\group ->
+                    (\( name, list ) ->
                         div []
-                            [ h3 [] [ text group.groupName ]
+                            [ h3 [] [ text name ]
                             , ul []
-                                (List.map (\city -> li [] [ text (toString city) ]) group.cities)
+                                (List.map (\city -> li [] [ text (toString city) ]) list)
                             ]
                     )
-                    listOfGroups
+                    (Dict.toList listOfGroups)
                 )
 
 
