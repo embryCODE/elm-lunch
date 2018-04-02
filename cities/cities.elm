@@ -37,7 +37,8 @@ type alias Model =
 type Result
     = ListOfCities (List City)
     | ListOfCitiesGrouped (Dict String (List City))
-    | ListOfStates (Dict String Int)
+    | CityCount (Dict String Int)
+    | HighLowZip (Dict String ( String, String ))
 
 
 groupByState : List City -> Dict String (List City)
@@ -79,6 +80,39 @@ countCities list =
         |> Dict.map (\stateName listOfCities -> List.length listOfCities)
 
 
+compareZip : String -> ( String, String ) -> ( String, String )
+compareZip compareZip ( lowZip, hiZip ) =
+    let
+        returnLow =
+            if String.isEmpty lowZip then
+                compareZip
+            else if compareZip < lowZip then
+                compareZip
+            else
+                lowZip
+
+        returnHi =
+            if compareZip > hiZip then
+                compareZip
+            else
+                hiZip
+    in
+        ( returnLow, returnHi )
+
+
+findHiLowZip : String -> List City -> ( String, String )
+findHiLowZip state cities =
+    cities
+        |> List.foldl (\city acc -> compareZip city.zipcode acc) ( "", "" )
+
+
+calculateZips : List City -> Dict String ( String, String )
+calculateZips list =
+    list
+        |> groupByState
+        |> Dict.map findHiLowZip
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -92,10 +126,10 @@ update msg model =
             ( Model "Filtered By TN" (ListOfCities (List.filter (\city -> city.state == state) list)), Cmd.none )
 
         StatesAndCityCount listOfCities ->
-            ( Model "States and City Count" (ListOfStates (countCities listOfCities)), Cmd.none )
+            ( Model "States and City Count" (CityCount (countCities listOfCities)), Cmd.none )
 
-        _ ->
-            ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
+        StatesWithHiLoZip listOfCities ->
+            ( Model "Starting List" (HighLowZip (calculateZips listOfCities)), Cmd.none )
 
 
 
@@ -115,12 +149,23 @@ liStyle =
 resultsList : Result -> Html msg
 resultsList result =
     case result of
-        ListOfStates states ->
+        CityCount states ->
             div []
                 (List.map
                     (\( state, number ) ->
                         div []
                             [ p [] [ text (state ++ " - " ++ (toString number)) ]
+                            ]
+                    )
+                    (Dict.toList states)
+                )
+
+        HighLowZip states ->
+            div []
+                (List.map
+                    (\( state, ( low, hi ) ) ->
+                        div []
+                            [ p [] [ text (state ++ " - " ++ (toString low) ++ " - " ++ (toString hi)) ]
                             ]
                     )
                     (Dict.toList states)
