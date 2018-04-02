@@ -6,6 +6,7 @@ import Html.Events exposing (onClick)
 import Json.Encode exposing (encode)
 import Dict exposing (..)
 import Dict.Extra exposing (..)
+import String exposing (uncons)
 
 
 main =
@@ -34,21 +35,16 @@ type alias Model =
 
 
 type Result
-    = SingleCity City
-    | ListOfCities (List City)
+    = ListOfCities (List City)
     | ListOfCitiesGrouped (Dict String (List City))
-
-
-groupBy : List City -> String -> Dict String (List City)
-groupBy list field =
-    list
-        |> List.filter (\city -> city.state /= "State")
-        |> Dict.Extra.groupBy (\city -> city.state)
+    | ListOfStates (Dict String Int)
 
 
 groupByState : List City -> Dict String (List City)
 groupByState list =
-    groupBy list "state"
+    list
+        |> List.filter (\city -> city.state /= "State")
+        |> Dict.Extra.groupBy (\city -> city.state)
 
 
 
@@ -57,10 +53,30 @@ groupByState list =
 
 type Msg
     = StartingList
-    | GroupBy (List City) String
-    | FilterGroupBy (List GroupedCities) String
-    | StatesAndCityCount (List GroupedCities)
-    | StatesWithHiLoZip (List GroupedCities)
+    | GroupByState (List City)
+    | FilterListByState (List City) String
+    | StatesAndCityCount (List City)
+    | StatesWithHiLoZip (List City)
+
+
+startCase : String -> String
+startCase string =
+    case String.uncons string of
+        Nothing ->
+            string
+
+        Just ( firstLetter, rest ) ->
+            firstLetter
+                |> String.fromChar
+                |> String.toUpper
+                |> (flip String.append) rest
+
+
+countCities : List City -> Dict String Int
+countCities list =
+    list
+        |> groupByState
+        |> Dict.map (\stateName listOfCities -> List.length listOfCities)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -69,8 +85,14 @@ update msg model =
         StartingList ->
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
 
-        GroupBy listOfCities groupField ->
-            ( Model ("Grouped By State") (ListOfCitiesGrouped (groupByState listOfCities)), Cmd.none )
+        GroupByState listOfCities ->
+            ( Model "Grouped By State" (ListOfCitiesGrouped (groupByState listOfCities)), Cmd.none )
+
+        FilterListByState list state ->
+            ( Model "Filtered By TN" (ListOfCities (List.filter (\city -> city.state == state) list)), Cmd.none )
+
+        StatesAndCityCount listOfCities ->
+            ( Model "States and City Count" (ListOfStates (countCities listOfCities)), Cmd.none )
 
         _ ->
             ( Model "Starting List" (ListOfCities rawCities), Cmd.none )
@@ -93,8 +115,16 @@ liStyle =
 resultsList : Result -> Html msg
 resultsList result =
     case result of
-        SingleCity city ->
-            div [] []
+        ListOfStates states ->
+            div []
+                (List.map
+                    (\( state, number ) ->
+                        div []
+                            [ p [] [ text (state ++ " - " ++ (toString number)) ]
+                            ]
+                    )
+                    (Dict.toList states)
+                )
 
         ListOfCities citiesList ->
             ul [] (List.map (\city -> li [] [ text (toString city) ]) citiesList)
@@ -119,10 +149,10 @@ view model =
         , ul
             [ style [ ( "listStyle", "none" ), ( "padding", "0" ), ( "margin", "0" ) ] ]
             [ li [ liStyle ] [ button [ onClick StartingList ] [ text "Starting list" ] ]
-            , li [ liStyle ] [ button [ onClick (GroupBy rawCities "state") ] [ text "Group the cities by state" ] ]
-            , li [ liStyle ] [ button [ onClick StartingList ] [ text "Filter the cities to show TN only" ] ]
-            , li [ liStyle ] [ button [ onClick StartingList ] [ text "Show states and the count of cities" ] ]
-            , li [ liStyle ] [ button [ onClick StartingList ] [ text "Show states and the highest and lowest zip code for the state" ] ]
+            , li [ liStyle ] [ button [ onClick (GroupByState rawCities) ] [ text "Group the cities by state" ] ]
+            , li [ liStyle ] [ button [ onClick (FilterListByState rawCities "TN") ] [ text "Filter the cities to show TN only" ] ]
+            , li [ liStyle ] [ button [ onClick (StatesAndCityCount rawCities) ] [ text "Show states and the count of cities" ] ]
+            , li [ liStyle ] [ button [ onClick (StatesWithHiLoZip rawCities) ] [ text "Show states and the highest and lowest zip code for the state" ] ]
             ]
         , div []
             [ h2 [] [ text (model.name) ]
